@@ -52,6 +52,22 @@ def get_page(url):
 
 
 @asyncio.coroutine
+def pihut():
+    url = 'http://thepihut.com/collections/new-products/products/raspberry-pi-zero'
+    html = yield from get_page(url)
+    q = pq(html)
+    x = q('#iStock-wrapper')
+    yield from lock
+    try:
+        if x:
+            STATUS['pihut'] = not ('sold out' in x[0].text_content())
+        else:
+            STATUS['pihut'] = False
+    finally:
+        lock.release()
+
+
+@asyncio.coroutine
 def pimoroni():
     url = 'https://shop.pimoroni.com/products/raspberry-pi-zero'
     html = yield from get_page(url)
@@ -88,6 +104,7 @@ def element14():
 def check():
     yield from pimoroni()
     yield from element14()
+    yield from pihut()
     print(time.strftime("%H:%M:%S"))
     if True in STATUS.values():  # Bingo!
         print('In stock!')
