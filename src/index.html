@@ -21,19 +21,27 @@
         }
 
         #main {
-            width: 200px;
-            height:50px;
+            width: 410px;
             margin:100px auto;
+            text-align: center;
         }
 
         table {
             margin:1px auto;
         }
 
+        td {
+            padding:3px 5px 3px 5px;
+        }
+
+        tr td:first-child {
+            text-align:right;
+        }
 
         h1 {
             color: #1394CC;
             text-align:center;
+            text-shadow: 1px 1px 3px rgb(179, 179, 179);
         }
 
         #footer {
@@ -45,6 +53,7 @@
 </head>
 <body>
     <div id="main">
+    <img src="http://i.imgur.com/sP9g4Nh.png" />
     <h1>RPi0 Watch</h1>
     <table>
     {% for x in status %}
@@ -59,7 +68,7 @@
     </div>
 
     <div id="footer">
-        Jeśli chesz otrzymać mejla automatycznie gdy pojawią się malinki - daj mi znać  🙂
+        Jeśli chesz otrzymać mejla automatycznie, gdy pojawią się malinki<br/>daj mi znać  🙂
     </div>
 </body>
 </html>
