@@ -83,7 +83,7 @@ def element14():
         lock.release()
 
 
-@aiocron.crontab('*/1 * * * *')
+@aiocron.crontab('*/5 * * * *')
 @asyncio.coroutine
 def check():
     yield from pimoroni()
