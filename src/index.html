@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>RPi0 Watch</title>
+    <link href='https://fonts.googleapis.com/css?family=Roboto+Condensed' rel='stylesheet' type='text/css'>
+    <style>
+        body {
+            background-color:#F0F2F2;
+            color: #2E2E2E;
+            font-family: 'Roboto Condensed', sans-serif;
+        }
+
+        .green {
+            color: #BCCF02;
+        }
+
+        .red {
+            color: #F0563D;
+        }
+
+        #main {
+            width: 200px;
+            height:50px;
+            margin:100px auto;
+        }
+
+        table {
+            margin:1px auto;
+        }
+
+
+        h1 {
+            color: #1394CC;
+            text-align:center;
+        }
+
+        #footer {
+            text-weight:light;
+            text-align:center;
+            font-size:0.8em;
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+    <h1>RPi0 Watch</h1>
+    <table>
+    {% for x in status %}
+        <tr>
+            <td><b>{{x.capitalize()}}</b></td>
+            <td>{%if status[x] %}<i class="green">In stock</i>{% else %}
+                <i class="red">Out of stock</i>{% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </table>
+    </div>
+
+    <div id="footer">
+        Jeśli chesz otrzymać mejla automatycznie gdy pojawią się malinki - daj mi znać  🙂
+    </div>
+</body>
+</html>
