@@ -4,6 +4,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import time
 import json
+import sys
 
 from aiohttp import web
 from pyquery import PyQuery as pq
@@ -16,6 +17,7 @@ lock = asyncio.Lock()
 last_stat = False
 CHECK_INTERVAL = 5  # minutes
 STATUS = {}
+SHOPS = []
 EMAILS = []
 MSG = Template("""
 At this moment the Raspberry Pi Zero is available in the following shops:
@@ -23,10 +25,15 @@ At this moment the Raspberry Pi Zero is available in the following shops:
    - {{s}}
 {% endfor %}""")
 
+try:
+    with open('shops.json', 'r') as f:
+        SHOPS = json.load(f)
 
-with open('maillist.json', 'r') as f:
-    o = json.load(f)
-    EMAILS = o.get('emails')
+    with open('maillist.json', 'r') as f:
+        EMAILS = json.load(f)
+except IOError:
+    print('Cannot load config!')
+    sys.exit(1)
 
 
 class GMailer():
@@ -81,40 +88,16 @@ def adafruit(q):
                 [x.text_content() for x in q('#prod-stock .oos-header')])
 
 
-SHOPS = [
-    {
-        'name': 'element14',
-        'url': 'http://www.element14.com/community/docs/DOC-79263?ICID=hp-'
-               'pizero-ban',
-        'procedure': element14
-    },
-    {
-        'name': 'pihut',
-        'url': 'http://thepihut.com/collections/new-products/products/'
-               'raspberry-pi-zero',
-        'procedure': pihut
-    },
-    {
-        'name': 'pimoroni',
-        'url': 'https://shop.pimoroni.com/products/raspberry-pi-zero',
-        'procedure': pimoroni
-    },
-    {
-        'name': 'adafruit',
-        'url': 'https://www.adafruit.com/products/2885',
-        'procedure': adafruit
-    },
-    {
-        'name': 'adafruit-BudgetPack',
-        'url': 'https://www.adafruit.com/products/2817',
-        'procedure': adafruit
-    },
-    {
-        'name': 'adafruit-StarterPack',
-        'url': 'https://www.adafruit.com/products/2816',
-        'procedure': adafruit
-    }
-]
+shop_mapping = {
+    'element14': element14,
+    'pihut': pihut,
+    'pimoroni': pimoroni,
+    'adafruit': adafruit,
+    'adafruit-BudgetPack': adafruit,
+    'adafruit-StarterPack': adafruit
+}
+for shop in SHOPS:
+    shop.update({'procedure': shop_mapping[shop['name']]})
 
 
 @asyncio.coroutine
