@@ -18,7 +18,7 @@ CHECK_INTERVAL = 5  # minutes
 STATUS = {}
 EMAILS = []
 MSG = Template("""
-W tej chwili Raspberry Pi 0 można kupić w następujących sklepach:
+At this moment the Raspberry Pi Zero is available in the following shops:
 {% for s in shops %}
    - {{s}}
 {% endfor %}""")
@@ -76,6 +76,11 @@ def element14(q):
     return True
 
 
+def adafruit(q):
+    return not ('OUT OF STOCK' in
+                [x.text_content() for x in q('#prod-stock .oos-header')])
+
+
 SHOPS = [
     {
         'name': 'element14',
@@ -93,6 +98,11 @@ SHOPS = [
         'name': 'pimoroni',
         'url': 'https://shop.pimoroni.com/products/raspberry-pi-zero',
         'procedure': pimoroni
+    },
+    {
+        'name': 'adafruit',
+        'url': 'https://www.adafruit.com/products/2885',
+        'procedure': adafruit
     }
 ]
 

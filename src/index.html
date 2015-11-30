@@ -49,28 +49,51 @@
             text-align:center;
             font-size:0.8em;
         }
+
+        #comments {
+            margin-top:150px;
+        }
+
     </style>
 </head>
 <body>
     <div id="main">
-    <img src="http://i.imgur.com/sP9g4Nh.png" />
-    <h1>RPi&#8709; Watch</h1>
-    <table>
-    {% for x in status %}
-        <tr>
-            <td><b>{{x.capitalize()}}</b></td>
-            <td>{%if status[x] %}<i class="green">In stock</i>{% else %}
-                <i class="red">Out of stock</i>{% endif %}
-            </td>
-        </tr>
-    {% endfor %}
-    </table>
+        <img src="http://i.imgur.com/sP9g4Nh.png" />
+        <h1>RPi&#8709; Watch</h1>
+        <table>
+        {% for x in status %}
+            <tr>
+                <td><b>{{x.capitalize()}}</b></td>
+                <td>{%if status[x] %}<i class="green">In stock</i>{% else %}
+                    <i class="red">Out of stock</i>{% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </table>
+
+        <div id="comments">
+          <h2>Comments - because why not? 🙂</h2>
+          <div id="disqus_thread"></div>
+          <script type="text/javascript">
+            var disqus_shortname = 'drslog';
+            var disqus_identifier = 'http://rpi0.satanowski.net';
+            var disqus_url = 'http://rpi0.satanowski.net';
+            (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//drslog.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+            })();
+          </script>
+          <noscript>Please enable JavaScript to view the comments.</noscript>
+        </div>
     </div>
 
     <div id="footer">
-        <p>Jeśli chesz otrzymać mejla automatycznie, gdy pojawią się malinki<br/>daj mi znać - dopiszę cię do mejllisty  🙂
+        <p>If you persistent enough to find my e-mail address you can send me a 
+        message and I will put your e-mail on this site's magic list so you will
+        get a notification as soon as my bot finds available RPis 🙂
         </p>
-        <p>Możesz też <a href="https://github.com/satanowski/rpi0watch">postawić własnego bota</a></p>
+        <p>You can also run <a href="https://github.com/satanowski/rpi0watch">your own bot</a></p>
     </div>
 </body>
 </html>
