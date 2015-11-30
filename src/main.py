@@ -103,6 +103,16 @@ SHOPS = [
         'name': 'adafruit',
         'url': 'https://www.adafruit.com/products/2885',
         'procedure': adafruit
+    },
+    {
+        'name': 'adafruit-BudgetPack',
+        'url': 'https://www.adafruit.com/products/2817',
+        'procedure': adafruit
+    },
+    {
+        'name': 'adafruit-StarterPack',
+        'url': 'https://www.adafruit.com/products/2816',
+        'procedure': adafruit
     }
 ]
 
@@ -151,7 +161,9 @@ def handle(request):
     page = ''
     with open('index.html', 'r') as f:
         template = Template(f.read())
-        page = template.render(status=STATUS)
+        shops = list(STATUS.keys())
+        shops.sort()
+        page = template.render(status=[(s, STATUS[s]) for s in shops])
     return web.Response(body=page.encode('utf-8'))
 
 

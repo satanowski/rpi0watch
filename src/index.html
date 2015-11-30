@@ -61,10 +61,10 @@
         <img src="http://i.imgur.com/sP9g4Nh.png" />
         <h1>RPi&#8709; Watch</h1>
         <table>
-        {% for x in status %}
+        {% for s, v in status %}
             <tr>
-                <td><b>{{x.capitalize()}}</b></td>
-                <td>{%if status[x] %}<i class="green">In stock</i>{% else %}
+                <td><b>{{s.capitalize()}}</b></td>
+                <td>{%if v %}<i class="green">In stock</i>{% else %}
                     <i class="red">Out of stock</i>{% endif %}
                 </td>
             </tr>
@@ -76,8 +76,8 @@
           <div id="disqus_thread"></div>
           <script type="text/javascript">
             var disqus_shortname = 'drslog';
-            var disqus_identifier = 'http://rpi0.satanowski.net';
             var disqus_url = 'http://rpi0.satanowski.net';
+            var disqus_identifier = disqus_url;
             (function() {
             var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
             dsq.src = '//drslog.disqus.com/embed.js';
