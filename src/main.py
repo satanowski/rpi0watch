@@ -17,13 +17,17 @@ lock = asyncio.Lock()
 last_stat = False
 CHECK_INTERVAL = 5  # minutes
 STATUS = {}
-SHOPS = []
+SHOPS = {}
 EMAILS = []
 MSG = Template("""
 At this moment the Raspberry Pi Zero is available in the following shops:
-{% for s in shops %}
-   - {{s}}
-{% endfor %}""")
+{% for s, u in shops %}
+   - {{s.capitalize()}} ({{u}})
+{% endfor %}
+
+Regards,
+Satanowski
+""")
 
 try:
     with open('shops.json', 'r') as f:
@@ -96,17 +100,15 @@ shop_mapping = {
     'adafruit-BudgetPack': adafruit,
     'adafruit-StarterPack': adafruit
 }
-for shop in SHOPS:
-    shop.update({'procedure': shop_mapping[shop['name']]})
 
 
 @asyncio.coroutine
-def _check_site(shop):
-    html = yield from get_page(shop['url'])
-    result = shop['procedure'](pq(html))
+def _check_site(shop_key):
+    html = yield from get_page(SHOPS[shop_key])
+    result = shop_mapping[shop_key](pq(html))
     yield from lock
     try:
-        STATUS[shop['name']] = result
+        STATUS[shop_key] = result
     finally:
         lock.release()
 
@@ -128,10 +130,12 @@ def check():
             if not last_stat:  # Do not repeat yourself
                 gm = GMailer(o.get('login'), o.get('pass'))
                 shops = [k for k in STATUS if STATUS[k]]
+                shops.sort()
+                shop_list = [(k, SHOPS[k]) for k in shops]
 
                 for e in EMAILS:
                     sent = gm.send_email(
-                        e, 'Raspberry Pi 0 Watch', MSG.render(shops=shops)
+                        e, 'Raspberry Pi 0 Watch', MSG.render(shops=shop_list)
                     )
         last_stat = True
     else:
@@ -146,7 +150,9 @@ def handle(request):
         template = Template(f.read())
         shops = list(STATUS.keys())
         shops.sort()
-        page = template.render(status=[(s, STATUS[s]) for s in shops])
+        page = template.render(
+            status=[(s, STATUS[s], SHOPS[s]) for s in shops]
+        )
     return web.Response(body=page.encode('utf-8'))
 
 

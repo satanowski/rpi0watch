@@ -1,26 +1,8 @@
-[
-  {
-    "name": "element14",
-    "url": "http://www.element14.com/community/docs/DOC-79263?ICID=hp-pizero-ban"
-  },
-  {
-    "name": "pihut",
-    "url": "http://thepihut.com/collections/new-products/products/raspberry-pi-zero"
-  },
-  {
-    "name": "pimoroni",
-    "url": "https://shop.pimoroni.com/products/raspberry-pi-zero"
-  },
-  {
-    "name": "adafruit",
-    "url": "https://www.adafruit.com/products/2885"
-  },
-  {
-    "name": "adafruit-BudgetPack",
-    "url": "https://www.adafruit.com/products/2817"
-  },
-  {
-    "name": "adafruit-StarterPack",
-    "url": "https://www.adafruit.com/products/2816"
-  }
-]
+{
+  "element14": "http://www.element14.com/community/docs/DOC-79263?ICID=hp-pizero-ban",
+  "pihut": "http://thepihut.com/collections/new-products/products/raspberry-pi-zero",
+  "pimoroni": "https://shop.pimoroni.com/products/raspberry-pi-zero",
+  "adafruit": "https://www.adafruit.com/products/2885",
+  "adafruit-BudgetPack": "https://www.adafruit.com/products/2817",
+  "adafruit-StarterPack": "https://www.adafruit.com/products/2816"
+}
