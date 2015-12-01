@@ -1,0 +1,11 @@
+Hi!
+
+At this moment the Raspberry Pi Zero is available in the following shops:
+{% for s, u in shops %}
+   - {{s.capitalize()}} ({{u}})
+{% endfor %}
+
+Good luck! :)
+
+Regards,
+Satanowski

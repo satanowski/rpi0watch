@@ -1,77 +1,88 @@
-import asyncio
-import smtplib
+# -*- coding: utf-8 -*-
+"""
+    main.py
+    ~~~~~~~
+
+    :copyright: (c) 2015 by Satanowski.
+    :license: GNU General Public License v3.0
+"""
+
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import time
+import asyncio
 import json
+import logging as log
+import smtplib
 import sys
+import time
 
 from aiohttp import web
+from jinja2 import Template
 from pyquery import PyQuery as pq
 import aiocron
 import aiohttp
-from jinja2 import Template
 
 
+log.basicConfig(
+    level=log.DEBUG,
+    format='%(asctime)s %(levelname)s\n%(message)s\n'
+)
 lock = asyncio.Lock()
 last_stat = False
-CHECK_INTERVAL = 5  # minutes
-STATUS = {}
-SHOPS = {}
-EMAILS = []
-MSG = Template("""
-At this moment the Raspberry Pi Zero is available in the following shops:
-{% for s, u in shops %}
-   - {{s.capitalize()}} ({{u}})
-{% endfor %}
 
-Regards,
-Satanowski
-""")
+CHECK_INTERVAL = 5  # minutes
+EMAILS = []
+MSG = None
+SHOPS = {}
+STATUS = {}
 
 try:
+    log.debug('Loading config files')
     with open('shops.json', 'r') as f:
         SHOPS = json.load(f)
 
     with open('maillist.json', 'r') as f:
         EMAILS = json.load(f)
-except IOError:
-    print('Cannot load config!')
+
+    with open('message.txt', 'r') as f:
+        MSG = Template(f.read())
+
+except (IOError, ValueError):
+    log.error('Cannot load config!')
     sys.exit(1)
 
 
-class GMailer():
-    def __init__(self, user_name, passwd):
-        self.user_name = user_name
-        self.passwd = passwd
+def send_email(user_name, passwd, recipient, subject, body):
+    '''Handles sending emails via GMail'''
 
-    def send_email(self, recipient, subject, body):
-        TO = recipient if type(recipient) is list else [recipient]
-        message = MIMEMultipart()
-        message["Subject"] = subject
-        message["To"] = ','.join(TO)
-        message.attach(MIMEText(body))
-        try:
-            server = smtplib.SMTP("smtp.gmail.com", 587)
-            server.ehlo()
-            server.starttls()
-            server.login(self.user_name, self.passwd)
-            server.sendmail(self.user_name, TO, message.as_string())
-            server.close()
-            return True
-        except:
-            return False
+    TO = recipient if isinstance(recipient, list) else [recipient]
+    message = MIMEMultipart()
+    message["Subject"] = subject
+    message["To"] = ','.join(TO)
+    message.attach(MIMEText(body))
+    try:
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.ehlo()
+        server.starttls()
+        server.login(user_name, passwd)
+        server.sendmail(user_name, TO, message.as_string())
+        server.close()
+        log.debug('Sent email [%s]', ','.join(TO))
+        return True
+    except:
+        return False
 
 
 @asyncio.coroutine
 def get_page(url):
+    log.debug('Retrievieng url: {}'.format(url))
     response = yield from aiohttp.request('GET', url)
     return (yield from response.read_and_close(decode=False))
 
 
 def pihut(q):
     x = q('#iStock-wrapper')
-    return x and (not ('sold out' in x[0].text_content()))
+    return x and ('sold out' not in x[0].text_content())
 
 
 def pimoroni(q):
@@ -88,8 +99,10 @@ def element14(q):
 
 
 def adafruit(q):
-    return not ('OUT OF STOCK' in
-                [x.text_content() for x in q('#prod-stock .oos-header')])
+    return (
+        'OUT OF STOCK' not in
+        [x.text_content() for x in q('#prod-stock .oos-header')]
+    )
 
 
 shop_mapping = {
@@ -104,6 +117,7 @@ shop_mapping = {
 
 @asyncio.coroutine
 def _check_site(shop_key):
+    log.debug('Cheking site [{}] ...'.format(shop_key))
     html = yield from get_page(SHOPS[shop_key])
     result = shop_mapping[shop_key](pq(html))
     yield from lock
@@ -120,26 +134,31 @@ def check():
     for shop in SHOPS:
         yield from _check_site(shop)
 
-    print(time.strftime("%H:%M:%S"))
     if True in STATUS.values():  # Bingo!
-        print('In stock!')
+        log.info('In stock!')
+        gm = None
         with open('gmail.json', 'r') as f:
-            o = json.load(f)
-            if not o:
+            try:
+                gm = json.load(f)
+            except ValueError:
+                log.error('Incorrect GMail config!')
+                return
+
+            if not gm:
                 return
             if not last_stat:  # Do not repeat yourself
-                gm = GMailer(o.get('login'), o.get('pass'))
                 shops = [k for k in STATUS if STATUS[k]]
                 shops.sort()
                 shop_list = [(k, SHOPS[k]) for k in shops]
 
                 for e in EMAILS:
-                    sent = gm.send_email(
+                    send_email(
+                        gm.get('login'), gm.get('pass'),
                         e, 'Raspberry Pi 0 Watch', MSG.render(shops=shop_list)
                     )
         last_stat = True
     else:
-        print('Out of stock')
+        log.info('Out of stock')
         last_stat = False
 
 
@@ -161,7 +180,7 @@ def init(loop):
     app = web.Application(loop=loop)
     app.router.add_route('GET', '/', handle)
     srv = yield from loop.create_server(app.make_handler(), '127.0.0.1', 3033)
-    print("Server started")
+    log.info("Server started")
     return srv
 
 
