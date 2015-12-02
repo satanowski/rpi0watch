@@ -7,6 +7,7 @@
     :license: GNU General Public License v3.0
 """
 
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import asyncio
@@ -29,6 +30,7 @@ log.basicConfig(
 )
 lock = asyncio.Lock()
 last_stat = False
+last_check = 0
 
 CHECK_INTERVAL = 5  # minutes
 EMAILS = []
@@ -130,10 +132,10 @@ def _check_site(shop_key):
 @aiocron.crontab('*/{} * * * *'.format(CHECK_INTERVAL))
 @asyncio.coroutine
 def check():
-    global last_stat
+    global last_stat, last_check
     for shop in SHOPS:
         yield from _check_site(shop)
-
+    last_check = datetime.utcnow().strftime("%Y/%m/%d-%H:%M")
     if True in STATUS.values():  # Bingo!
         log.info('In stock!')
         gm = None
@@ -170,7 +172,8 @@ def handle(request):
         shops = list(STATUS.keys())
         shops.sort()
         page = template.render(
-            status=[(s, STATUS[s], SHOPS[s]) for s in shops]
+            status=[(s, STATUS[s], SHOPS[s]) for s in shops],
+            timestamp=last_check
         )
     return web.Response(body=page.encode('utf-8'))
 

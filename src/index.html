@@ -63,6 +63,14 @@
             margin-top:150px;
         }
 
+        #timestamp {
+            font-size: 0.8em;
+            text-align: center;
+            margin:30px auto;
+            color:#b6b6b6;
+            font-style: italic; 
+        }
+
     </style>
 </head>
 <body>
@@ -79,6 +87,10 @@
             </tr>
         {% endfor %}
         </table>
+
+        {% if timestamp %}
+        <div id="timestamp">Last update: {{timestamp}} UTC</div>
+        {% endif %}
 
         <div id="comments">
           <h2>Comments - because why not? 🙂</h2>
