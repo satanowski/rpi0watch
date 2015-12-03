@@ -84,7 +84,8 @@ def get_page(url):
 
 def pihut(q):
     x = q('#iStock-wrapper')
-    return x and ('sold out' not in x[0].text_content())
+    return x and ('sold out' not in x[0].text_content() and
+                  'Out Of Stock' not in x[0].text_content())
 
 
 def pimoroni(q):
