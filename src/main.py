@@ -7,6 +7,7 @@
     :license: GNU General Public License v3.0
 """
 
+from collections import deque
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -37,6 +38,7 @@ EMAILS = []
 MSG = None
 SHOPS = {}
 STATUS = {}
+availability = deque(maxlen=int(24 * (60 / CHECK_INTERVAL)))
 
 try:
     log.debug('Loading config files')
@@ -164,6 +166,13 @@ def check():
         log.info('Out of stock')
         last_stat = False
 
+    availability.append(last_stat)
+
+
+def chunks(l, n):
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
 
 @asyncio.coroutine
 def handle(request):
@@ -172,9 +181,14 @@ def handle(request):
         template = Template(f.read())
         shops = list(STATUS.keys())
         shops.sort()
+        samples_per_hour = int(60 / CHECK_INTERVAL)
         page = template.render(
             status=[(s, STATUS[s], SHOPS[s]) for s in shops],
-            timestamp=last_check
+            timestamp=last_check,
+            availability=list(
+                chunks(list(availability), samples_per_hour)
+            ),
+            samples_per_hour=samples_per_hour
         )
     return web.Response(body=page.encode('utf-8'))
 

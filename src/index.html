@@ -71,6 +71,45 @@
             font-style: italic; 
         }
 
+        .sample {
+            width: 15px;
+            height: 15px;
+            margin: 0px 1px 1px 1px;
+        }
+
+        .nop {
+            background-color: #BFBFBF;
+        }
+
+        .hour {
+            width: 15px;
+            height: auto;
+            float: left;
+            margin: 1px 1px 1px 0px;
+        }
+
+        .in {
+            background-color: #6ACA40;
+        }
+
+        .out {
+            background-color: #FF5420;
+        }
+
+        .footer {
+            font-size: 10px;
+            text-align: center;
+            border: none;
+            padding-top: 3px;
+            font-family: Consolas, "Liberation Mono", Courier;
+        }
+
+        #wrapper {
+            width:400px;
+            height: auto;
+            margin-bottom: 50px;
+            padding: 0 0;
+        }
     </style>
 </head>
 <body>
@@ -78,6 +117,9 @@
         <img src="http://i.imgur.com/sP9g4Nh.png" />
         <h1>RPi&#8709; Watch</h1>
         <table>
+        {% if not status %}
+        <i>No results yet</i>
+        {% endif %}
         {% for s, v, u in status %}
             <tr>
                 <td><a href="{{u}}">{{s.capitalize()}}</a></td>
@@ -90,6 +132,32 @@
 
         {% if timestamp %}
         <div id="timestamp">Last update: {{timestamp}} UTC</div>
+        {% endif %}
+
+        {% if availability %}
+        <div id="wrapper">
+            {% for h in range(24-availability|length) %}
+                <div class="hour">
+                    {% for i in range(samples_per_hour) %}
+                    <div class="sample nop"> </div>
+                    {% endfor %}
+                    <div class="sample footer">{{24-h}}</div>
+                </div>
+            {% endfor %}
+            
+            {% for h in range(availability|length) %}
+                <div class="hour">
+                {% for h in range(samples_per_hour-availability[h]|length) %}
+                    <div class="sample nop"> </div>
+                {% endfor %}
+                {%for s in availability[h] %}
+                    <div class="sample {% if availability[h] == True %}in{% else %}out{% endif %}"> </div>
+                {% endfor %}
+                <div class="sample footer">{{availability|length-h}}</div>
+                </div>
+            {% endfor %}
+            <br style="clear:both" />
+        </div>
         {% endif %}
 
         <div id="comments">
