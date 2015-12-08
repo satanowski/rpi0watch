@@ -34,8 +34,6 @@ last_stat = False
 last_check = 0
 
 CHECK_INTERVAL = 5  # minutes
-EMAILS = []
-MSG = None
 SHOPS = {}
 STATUS = {}
 availability = deque(maxlen=int(24 * (60 / CHECK_INTERVAL)))
@@ -44,12 +42,6 @@ try:
     log.debug('Loading config files')
     with open('shops.json', 'r') as f:
         SHOPS = json.load(f)
-
-    with open('maillist.json', 'r') as f:
-        EMAILS = json.load(f)
-
-    with open('message.txt', 'r') as f:
-        MSG = Template(f.read())
 
 except (IOError, ValueError):
     log.error('Cannot load config!')
@@ -142,25 +134,33 @@ def check():
     if True in STATUS.values():  # Bingo!
         log.info('In stock!')
         gm = None
-        with open('gmail.json', 'r') as f:
-            try:
+        emails = None
+        msg = None
+        try:
+            with open('maillist.json', 'r') as f:
+                emails = json.load(f)
+            with open('gmail.json', 'r') as f:
                 gm = json.load(f)
-            except ValueError:
-                log.error('Incorrect GMail config!')
-                return
+            with open('message.txt', 'r') as f:
+                msg = Template(f.read())
+        except (ValueError, IOError):
+            log.error("Cannot load email list, gmail configuration"
+                      " or message template!")
+            return
 
-            if not gm:
-                return
-            if not last_stat:  # Do not repeat yourself
-                shops = [k for k in STATUS if STATUS[k]]
-                shops.sort()
-                shop_list = [(k, SHOPS[k]) for k in shops]
+        if not (gm and emails and msg):
+            return
 
-                for e in EMAILS:
-                    send_email(
-                        gm.get('login'), gm.get('pass'),
-                        e, 'Raspberry Pi 0 Watch', MSG.render(shops=shop_list)
-                    )
+        if not last_stat:  # Do not repeat yourself
+            shops = [k for k in STATUS if STATUS[k]]
+            shops.sort()
+            shop_list = [(k, SHOPS[k]) for k in shops]
+
+            for e in emails:
+                send_email(
+                    gm.get('login'), gm.get('pass'),
+                    e, 'Raspberry Pi 0 Watch', msg.render(shops=shop_list)
+                )
         last_stat = True
     else:
         log.info('Out of stock')
