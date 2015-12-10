@@ -153,7 +153,7 @@
                     <div class="sample nop"> </div>
                 {% endfor %}
                 {%for s in availability[h] %}
-                    <div class="sample {% if availability[h] == True %}in{% else %}out{% endif %}"> </div>
+                    <div class="sample {% if s %}in{% else %}out{% endif %}"> </div>
                 {% endfor %}
                 <div class="sample footer">{{availability|length-h}}</div>
                 </div>
