@@ -72,8 +72,13 @@ def send_email(user_name, passwd, recipient, subject, body):
 @asyncio.coroutine
 def get_page(url):
     log.debug('Retrievieng url: {}'.format(url))
-    response = yield from aiohttp.request('GET', url)
-    return (yield from response.read_and_close(decode=False))
+    try:
+        with aiohttp.Timeout(3):
+            response = yield from aiohttp.request('GET', url)
+            return (yield from response.read_and_close(decode=False))
+    except (asyncio.TimeoutError, aiohttp.errors.ClientOSError):
+        log.warning('Cannot retrieve {}'.format(url))
+        return None
 
 
 def pihut(q):
@@ -116,7 +121,12 @@ shop_mapping = {
 def _check_site(shop_key):
     log.debug('Cheking site [{}] ...'.format(shop_key))
     html = yield from get_page(SHOPS[shop_key])
-    result = shop_mapping[shop_key](pq(html))
+    if html:
+        result = shop_mapping[shop_key](pq(html))
+    else:
+        log.warning('Shop {} skipped - no html was retrieved'.format(shop_key))
+        result = False
+
     yield from lock
     try:
         STATUS[shop_key] = result
