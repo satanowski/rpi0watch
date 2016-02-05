@@ -33,7 +33,7 @@ lock = asyncio.Lock()
 last_stat = False
 last_check = 0
 
-CHECK_INTERVAL = 1  # minutes
+CHECK_INTERVAL = 5  # minutes
 SHOPS = {}
 STATUS = {}
 availability = deque(maxlen=int(24 * (60 / CHECK_INTERVAL)))
@@ -95,6 +95,8 @@ def pimoroni(html):
 
 def element14(html):
     q = pq(html)
+    if 'Our service is temporarily unavailable' in q.html():
+        return False
     for span in q('table.jiveBorder span'):
         if span.text_content().strip() == 'Raspberry Pi Zero  SOLD OUT':
             return False
@@ -189,7 +191,9 @@ def chunks(l, n):
 @asyncio.coroutine
 def handle(request):
     page = ''
-    with open('index.html', 'r') as f:
+    f = None
+    try:
+        f = open('index.html', 'r')
         template = Template(f.read())
         shops = list(STATUS.keys())
         shops.sort()
@@ -202,6 +206,11 @@ def handle(request):
             ),
             samples_per_hour=samples_per_hour
         )
+    except IOError:
+        log.error('Cannot open template file!')
+    finally:
+        if f:
+            f.close()
     return web.Response(body=page.encode('utf-8'))
 
 
