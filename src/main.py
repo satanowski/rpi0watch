@@ -33,7 +33,7 @@ lock = asyncio.Lock()
 last_stat = False
 last_check = 0
 
-CHECK_INTERVAL = 5  # minutes
+CHECK_INTERVAL = 1  # minutes
 SHOPS = {}
 STATUS = {}
 availability = deque(maxlen=int(24 * (60 / CHECK_INTERVAL)))
@@ -81,26 +81,28 @@ def get_page(url):
         return None
 
 
-def pihut(q):
-    x = q('#iStock-wrapper')
-    return x and ('sold out' not in x[0].text_content() and
-                  'Out Of Stock' not in x[0].text_content())
+def pihut(raw):
+    j = json.loads(raw.decode())
+    return any([x['inventory_quantity'] > 0 for x in j['variants']])
 
 
-def pimoroni(q):
+def pimoroni(html):
+    q = pq(html)
     forms = q('form')
     return 'in-stock' in ''.join([f.attrib.get('class') for f in forms
                                   if f.attrib.get('action') == '/cart/add'])
 
 
-def element14(q):
+def element14(html):
+    q = pq(html)
     for span in q('table.jiveBorder span'):
         if span.text_content().strip() == 'Raspberry Pi Zero  SOLD OUT':
             return False
     return True
 
 
-def adafruit(q):
+def adafruit(html):
+    q = pq(html)
     return (
         'OUT OF STOCK' not in
         [x.text_content() for x in q('#prod-stock .oos-header')]
@@ -122,7 +124,7 @@ def _check_site(shop_key):
     log.debug('Cheking site [{}] ...'.format(shop_key))
     html = yield from get_page(SHOPS[shop_key])
     if html:
-        result = shop_mapping[shop_key](pq(html))
+        result = shop_mapping[shop_key](html)
     else:
         log.warning('Shop {} skipped - no html was retrieved'.format(shop_key))
         result = False
