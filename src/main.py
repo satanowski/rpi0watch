@@ -24,6 +24,7 @@ from pyquery import PyQuery as pq
 import aiocron
 import aiohttp
 
+import bot
 
 log.basicConfig(
     level=log.DEBUG,
@@ -144,6 +145,7 @@ def check():
     global last_stat, last_check
     for shop in SHOPS:
         yield from _check_site(shop)
+
     last_check = datetime.utcnow().strftime("%Y/%m/%d-%H:%M")
     if True in STATUS.values():  # Bingo!
         log.info('In stock!')
@@ -169,11 +171,15 @@ def check():
             shops = [k for k in STATUS if STATUS[k]]
             shops.sort()
             shop_list = [(k, SHOPS[k]) for k in shops]
-
+            a_message = msg.render(shops=shop_list)
+            bot.notify(a_message)
             for e in emails:
                 send_email(
-                    gm.get('login'), gm.get('pass'),
-                    e, 'Raspberry Pi 0 Watch', msg.render(shops=shop_list)
+                    gm.get('login'),
+                    gm.get('pass'),
+                    e,
+                    'Raspberry Pi 0 Watch',
+                    a_message
                 )
         last_stat = True
     else:
@@ -224,6 +230,8 @@ def init(loop):
 
 
 if __name__ == '__main__':
+    bot.setup_bot()
+    bot.start_bot()
     loop = asyncio.get_event_loop()
     loop.run_until_complete(init(loop))
     try:

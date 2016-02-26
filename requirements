@@ -2,3 +2,4 @@ aiocron
 aiohttp
 jinja2
 pyquery
+python-telegram-bot
