@@ -1,3 +1,6 @@
 src/gmail.json
 src/maillist.json
 venv/*
+src/__pycache__/
+src/bot_ids.bin
+src/token

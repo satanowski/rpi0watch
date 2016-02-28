@@ -23,8 +23,12 @@ from jinja2 import Template
 from pyquery import PyQuery as pq
 import aiocron
 import aiohttp
+import PyRSS2Gen
 
-import bot
+
+BOT_ENABLED = True
+if BOT_ENABLED:
+    import bot
 
 log.basicConfig(
     level=log.DEBUG,
@@ -172,7 +176,8 @@ def check():
             shops.sort()
             shop_list = [(k, SHOPS[k]) for k in shops]
             a_message = msg.render(shops=shop_list)
-            bot.notify(a_message)
+            if BOT_ENABLED:
+                bot.notify(a_message)
             for e in emails:
                 send_email(
                     gm.get('login'),
@@ -192,6 +197,33 @@ def check():
 def chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]
+
+@asyncio.coroutine
+def rss(request):
+    items = []
+
+    for shop in SHOPS:
+        items.append(PyRSS2Gen.RSSItem(
+            title=shop.title(),
+            link=SHOPS[shop],
+            description="Current status: {} Available".format(
+                "NOT" if not STATUS.get(shop) else ""
+            )
+        ))
+
+    rss = PyRSS2Gen.RSS2(
+        title="RPi0 Watch",
+        link='http://rpi0.satanowski.net/rss',
+        description="Current status of RPi0 availability",
+        lastBuildDate=datetime.now(),
+        generator='RPi0 Watch',
+        docs='http://rpi0.satanowski.net/',
+        items=items
+    )
+    return web.Response(
+        body=rss.to_xml('utf-8').encode(),
+        content_type='application/rss+xml'
+    )
 
 
 @asyncio.coroutine
@@ -224,14 +256,16 @@ def handle(request):
 def init(loop):
     app = web.Application(loop=loop)
     app.router.add_route('GET', '/', handle)
+    app.router.add_route('GET', '/rss', rss)
     srv = yield from loop.create_server(app.make_handler(), '127.0.0.1', 3033)
     log.info("Server started")
     return srv
 
 
 if __name__ == '__main__':
-    bot.setup_bot()
-    bot.start_bot()
+    if BOT_ENABLED:
+        bot.setup_bot()
+        bot.start_bot()
     loop = asyncio.get_event_loop()
     loop.run_until_complete(init(loop))
     try:
