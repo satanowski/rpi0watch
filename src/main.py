@@ -115,6 +115,10 @@ def adafruit(html):
         [x.text_content() for x in q('#prod-stock .oos-header')]
     )
 
+def botland(html):
+    q = pq(html)
+    button = q("#add_to_cart input")
+    return button and button[0].name == 'Submit'
 
 shop_mapping = {
     'element14': element14,
@@ -122,7 +126,8 @@ shop_mapping = {
     'pimoroni': pimoroni,
     'adafruit': adafruit,
     'adafruit-BudgetPack': adafruit,
-    'adafruit-StarterPack': adafruit
+    'adafruit-StarterPack': adafruit,
+    'botland': botland
 }
 
 
