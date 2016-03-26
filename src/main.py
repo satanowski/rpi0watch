@@ -3,28 +3,26 @@
     main.py
     ~~~~~~~
 
-    :copyright: (c) 2015 by Satanowski.
+    :copyright: (c) 2015-2016 by Satanowski.
     :license: GNU General Public License v3.0
 """
 
 from collections import deque
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 import asyncio
-import json
 import logging as log
-import smtplib
 import sys
-import time
+import os
 
 from aiohttp import web
 from jinja2 import Template
-from pyquery import PyQuery as pq
 import aiocron
-import aiohttp
 import PyRSS2Gen
 
+from shops import shops
+from utils import send_email, prepare_emails
+
+__OFFNAME__ = 'Raspberry Pi 0 Watch'
 
 BOT_ENABLED = True
 if BOT_ENABLED:
@@ -35,188 +33,121 @@ log.basicConfig(
     format='%(asctime)s %(levelname)s\n%(message)s\n'
 )
 lock = asyncio.Lock()
-last_stat = False
-last_check = 0
+last_check = None
 
+# how many periods without Pi in shops must pass to turn back on notifications
+FALSE_PERIODS_THRESHOLD = 3
 CHECK_INTERVAL = 5  # minutes
-SHOPS = {}
-STATUS = {}
+SHOP_HANDLERS = []
+
 availability = deque(maxlen=int(24 * (60 / CHECK_INTERVAL)))
 
-try:
-    log.debug('Loading config files')
-    with open('shops.json', 'r') as f:
-        SHOPS = json.load(f)
-
-except (IOError, ValueError):
-    log.error('Cannot load config!')
-    sys.exit(1)
-
-
-def send_email(user_name, passwd, recipient, subject, body):
-    '''Handles sending emails via GMail'''
-
-    TO = recipient if isinstance(recipient, list) else [recipient]
-    message = MIMEMultipart()
-    message["Subject"] = subject
-    message["To"] = ','.join(TO)
-    message.attach(MIMEText(body))
+tmpl_f = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html')
+with open(tmpl_f, 'r') as f:
     try:
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.ehlo()
-        server.starttls()
-        server.login(user_name, passwd)
-        server.sendmail(user_name, TO, message.as_string())
-        server.close()
-        log.debug('Sent email [%s]', ','.join(TO))
-        return True
-    except:
-        return False
+        index_template = Template(f.read())
+    except IOError:
+        sys.exit('Cannot open template file!')
 
 
-@asyncio.coroutine
-def get_page(url):
-    log.debug('Retrievieng url: {}'.format(url))
-    try:
-        with aiohttp.Timeout(3):
-            response = yield from aiohttp.request('GET', url)
-            return (yield from response.read_and_close(decode=False))
-    except (asyncio.TimeoutError, aiohttp.errors.ClientOSError):
-        log.warning('Cannot retrieve {}'.format(url))
-        return None
+def prepare_shop_handlers():
+    """Create isinstances of shop handlers."""
+
+    for shop_handler in shops:
+        SHOP_HANDLERS.append(shop_handler())
 
 
-def pihut(raw):
-    j = json.loads(raw.decode())
-    return any([x['inventory_quantity'] > 0 for x in j['variants']])
+def get_products(only_available=True):
+    """Return list of observed products.
+    Only these which are available if 'only_available' is set."""
 
+    products = []
+    for shop in SHOP_HANDLERS:
+        for prod in shop.products:
+            if not (only_available and not shop.available):
+                products.append(prod)
 
-def pimoroni(html):
-    q = pq(html)
-    forms = q('form')
-    return 'in-stock' in ''.join([f.attrib.get('class') for f in forms
-                                  if f.attrib.get('action') == '/cart/add'])
-
-
-def element14(html):
-    q = pq(html)
-    if 'Our service is temporarily unavailable' in q.html():
-        return False
-    for span in q('table.jiveBorder span'):
-        if span.text_content().strip() == 'Raspberry Pi Zero  SOLD OUT':
-            return False
-    return True
-
-
-def adafruit(html):
-    q = pq(html)
-    return (
-        'OUT OF STOCK' not in
-        [x.text_content() for x in q('#prod-stock .oos-header')]
-    )
-
-def botland(html):
-    q = pq(html)
-    button = q("#add_to_cart input")
-    return button and button[0].name == 'Submit'
-
-shop_mapping = {
-    'element14': element14,
-    'pihut': pihut,
-    'pimoroni': pimoroni,
-    'adafruit': adafruit,
-    'adafruit-BudgetPack': adafruit,
-    'adafruit-StarterPack': adafruit,
-    'botland': botland
-}
-
-
-@asyncio.coroutine
-def _check_site(shop_key):
-    log.debug('Cheking site [{}] ...'.format(shop_key))
-    html = yield from get_page(SHOPS[shop_key])
-    if html:
-        result = shop_mapping[shop_key](html)
-    else:
-        log.warning('Shop {} skipped - no html was retrieved'.format(shop_key))
-        result = False
-
-    yield from lock
-    try:
-        STATUS[shop_key] = result
-    finally:
-        lock.release()
+    return products
 
 
 @aiocron.crontab('*/{} * * * *'.format(CHECK_INTERVAL))
 @asyncio.coroutine
 def check():
-    global last_stat, last_check
-    for shop in SHOPS:
-        yield from _check_site(shop)
+    """Check availability of all observed products."""
+    global last_check
+
+    for shop in SHOP_HANDLERS:
+        yield from shop.check()
 
     last_check = datetime.utcnow().strftime("%Y/%m/%d-%H:%M")
-    if True in STATUS.values():  # Bingo!
-        log.info('In stock!')
-        gm = None
-        emails = None
-        msg = None
-        try:
-            with open('maillist.json', 'r') as f:
-                emails = json.load(f)
-            with open('gmail.json', 'r') as f:
-                gm = json.load(f)
-            with open('message.txt', 'r') as f:
-                msg = Template(f.read())
-        except (ValueError, IOError):
-            log.error("Cannot load email list, gmail configuration"
-                      " or message template!")
-            return
 
-        if not (gm and emails and msg):
-            return
-
-        if not last_stat:  # Do not repeat yourself
-            shops = [k for k in STATUS if STATUS[k]]
-            shops.sort()
-            shop_list = [(k, SHOPS[k]) for k in shops]
-            a_message = msg.render(shops=shop_list)
-            if BOT_ENABLED:
-                bot.notify(a_message)
-            for e in emails:
-                send_email(
-                    gm.get('login'),
-                    gm.get('pass'),
-                    e,
-                    'Raspberry Pi 0 Watch',
-                    a_message
-                )
-        last_stat = True
+    if any([shop.available for shop in SHOP_HANDLERS]):
+        notify()
     else:
         log.info('Out of stock')
-        last_stat = False
+        availability.append(False)
 
-    availability.append(last_stat)
+
+def notify():
+    """Notify about availability of observed products."""
+
+    log.info('In stock!')
+    availability.append(True)
+    emails, gm, msg = prepare_emails()
+
+    if not all([emails, gm, msg]):
+        log.error('Cannot notify users! No email/message configuration!')
+        return
+
+    thresh = len(availability) if len(availability) < FALSE_PERIODS_THRESHOLD \
+        else FALSE_PERIODS_THRESHOLD
+    h_len = len(availability)
+    do_notify = all([not availability[x] for x in range(h_len-thresh, h_len)])
+
+    if not do_notify:
+        log.info(
+            'Skipping notification: Pi was available in last %d periods.',
+            thresh
+        )
+        return
+
+    products = get_products(only_available=True)
+    a_message = msg.render(shops=products)
+
+    if BOT_ENABLED:
+        log.debug('Sending telegram mesages...')
+        bot.notify(a_message)
+        log.debug('Sending telegram mesages done')
+
+    log.debug('Sending emails...(%d)', len(emails))
+    for e in emails:
+        send_email(gm.get('login'), gm.get('pass'), e, __OFFNAME__, a_message)
+    log.debug('Sending emails done')
 
 
 def chunks(l, n):
+    """Divide long list of availability histogram in 1 hour groups."""
+
     for i in range(0, len(l), n):
         yield l[i:i + n]
 
+
 @asyncio.coroutine
 def rss(request):
+    """Generate RSS feed."""
+
     items = []
 
-    for shop in SHOPS:
+    for prod in get_products(only_available=False):
         items.append(PyRSS2Gen.RSSItem(
-            title=shop.title(),
-            link=SHOPS[shop],
-            description="Current status: {} Available".format(
-                "NOT" if not STATUS.get(shop) else ""
+            title=prod.name,
+            link=prod.url,
+            description="Current status:{}Available".format(
+                " " if prod.availability else " NOT "
             )
         ))
 
-    rss = PyRSS2Gen.RSS2(
+    feed = PyRSS2Gen.RSS2(
         title="RPi0 Watch",
         link='http://rpi0.satanowski.net/rss',
         description="Current status of RPi0 availability",
@@ -226,41 +157,32 @@ def rss(request):
         items=items
     )
     return web.Response(
-        body=rss.to_xml('utf-8').encode(),
+        body=feed.to_xml('utf-8').encode(),
         content_type='application/rss+xml'
     )
 
 
 @asyncio.coroutine
-def handle(request):
-    page = ''
-    f = None
-    try:
-        f = open('index.html', 'r')
-        template = Template(f.read())
-        shops = list(STATUS.keys())
-        shops.sort()
-        samples_per_hour = int(60 / CHECK_INTERVAL)
-        page = template.render(
-            status=[(s, STATUS[s], SHOPS[s]) for s in shops],
-            timestamp=last_check,
-            availability=list(
-                chunks(list(availability), samples_per_hour)
-            ),
-            samples_per_hour=samples_per_hour
-        )
-    except IOError:
-        log.error('Cannot open template file!')
-    finally:
-        if f:
-            f.close()
+def index(request):
+    """Generate main page."""
+
+    samples_per_hour = int(60 / CHECK_INTERVAL)
+
+    page = index_template.render(
+        status=get_products(only_available=False),
+        timestamp=last_check,
+        availability=list(chunks(list(availability), samples_per_hour)),
+        samples_per_hour=samples_per_hour
+    )
     return web.Response(body=page.encode('utf-8'))
 
 
 @asyncio.coroutine
 def init(loop):
+    """Main loop."""
+
     app = web.Application(loop=loop)
-    app.router.add_route('GET', '/', handle)
+    app.router.add_route('GET', '/', index)
     app.router.add_route('GET', '/rss', rss)
     srv = yield from loop.create_server(app.make_handler(), '127.0.0.1', 3033)
     log.info("Server started")
@@ -268,6 +190,7 @@ def init(loop):
 
 
 if __name__ == '__main__':
+    prepare_shop_handlers()
     if BOT_ENABLED:
         bot.setup_bot()
         bot.start_bot()

@@ -1,7 +1,7 @@
 Hi!
 
 At this moment the Raspberry Pi Zero is available in the following shops:
-{% for s, u in shops %}
+{% for s, u, a in shops %}
    - {{s.capitalize()}} ({{u}})
 {% endfor %}
 

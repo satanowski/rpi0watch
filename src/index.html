@@ -6,12 +6,18 @@
     <meta http-equiv="refresh" content="{{(60*60/samples_per_hour)|int}}" />
     <title>RPi0 Watch</title>
     <link href='https://fonts.googleapis.com/css?family=Roboto+Condensed' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
     <link rel="alternate" type="application/rss+xml" href="/rss" />
     <style>
         body {
             background-color:#F0F2F2;
+            /* background-image: url('https://c2.staticflickr.com/2/1694/26022398156_f7ff0ddc13_o.jpg'); */
+            background-size: 100% auto;
+            background-repeat: no-repeat;
             color: #2E2E2E;
             font-family: 'Roboto Condensed', sans-serif;
+            padding: 20px;
         }
 
         .green {
@@ -20,12 +26,6 @@
 
         .red {
             color: #F0563D;
-        }
-
-        #main {
-            width: 410px;
-            margin:100px auto;
-            text-align: center;
         }
 
         a {
@@ -46,13 +46,11 @@
         }
 
         tr td:first-child {
-            text-align:right;
+            /*text-align:right;*/
         }
 
         h1 {
-            color: #1394CC;
             text-align:center;
-            text-shadow: 1px 1px 3px rgb(179, 179, 179);
         }
 
         #footer {
@@ -61,8 +59,8 @@
             font-size:0.8em;
         }
 
-        #comments {
-            margin-top:150px;
+        .vspace {
+            margin-top:50px;
         }
 
         #timestamp {
@@ -74,8 +72,8 @@
         }
 
         .sample {
-            width: 15px;
-            height: 15px;
+            width: 17px;
+            height: 17px;
             margin: 0px 1px 1px 1px;
         }
 
@@ -84,7 +82,7 @@
         }
 
         .hour {
-            width: 15px;
+            width: 17px;
             height: auto;
             float: left;
             margin: 1px 1px 1px 0px;
@@ -106,26 +104,21 @@
             font-family: Consolas, "Liberation Mono", Courier;
         }
 
-        #wrapper {
-            width:400px;
-            height: auto;
-            margin-bottom: 50px;
-            padding: 0 0;
-        }
     </style>
 </head>
 <body>
-    <div id="main">
-        <img src="http://i.imgur.com/sP9g4Nh.png" />
-        <h1>RPi&#8709; Watch</h1>
-        <table>
+  <div class="container">
+    <div class="row">
+      <div class="col-md-6">
+        <h2>Shops:</h2>
+        <table class="table table-striped">
         {% if not status %}
         <i>No results yet</i>
         {% endif %}
-        {% for s, v, u in status %}
+        {% for n, u, a in status %}
             <tr>
-                <td><a href="{{u}}">{{s.capitalize()}}</a></td>
-                <td>{%if v %}<i class="green">In stock</i>{% else %}
+                <td><a href="{{u}}">{{n.capitalize()}}</a></td>
+                <td>{%if a %}<i class="green">In stock</i>{% else %}
                     <i class="red">Out of stock</i>{% endif %}
                 </td>
             </tr>
@@ -137,56 +130,61 @@
         {% endif %}
 
         {% if availability %}
-        <h3>Availability in last 24h</h3>
+        <h2 class="vspace">Availability in last 24h:</h2>
         <div id="wrapper">
-            {% for h in range(24-availability|length) %}
-                <div class="hour">
-                    {% for i in range(samples_per_hour) %}
-                    <div class="sample nop"> </div>
-                    {% endfor %}
-                    <div class="sample footer">{{24-h}}</div>
-                </div>
-            {% endfor %}
+          {% for h in range(24-availability|length) %}
+              <div class="hour">
+                  {% for i in range(samples_per_hour) %}
+                  <div class="sample nop"> </div>
+                  {% endfor %}
+                  <div class="sample footer">{{24-h}}</div>
+              </div>
+          {% endfor %}
 
-            {% for h in range(availability|length) %}
-                <div class="hour">
-                {% for h in range(samples_per_hour-availability[h]|length) %}
-                    <div class="sample nop"> </div>
-                {% endfor %}
-                {%for s in availability[h] %}
-                    <div class="sample {% if s %}in{% else %}out{% endif %}"> </div>
-                {% endfor %}
-                <div class="sample footer">{{availability|length-h}}</div>
-                </div>
-            {% endfor %}
-            <br style="clear:both" />
+          {% for h in range(availability|length) %}
+              <div class="hour">
+              {% for h in range(samples_per_hour-availability[h]|length) %}
+                  <div class="sample nop"> </div>
+              {% endfor %}
+              {%for s in availability[h] %}
+                  <div class="sample {% if s %}in{% else %}out{% endif %}"> </div>
+              {% endfor %}
+              <div class="sample footer">{{availability|length-h}}</div>
+              </div>
+          {% endfor %}
+          <br style="clear:both" />
         </div>
-        <h3>Telegram Bot (beta)</h3>
-        <div id="wrapper">
+
+        <h2 class="vspace">Telegram Bot (beta):</h2>
+        <div>
             Instead of checking this site every 5 minutes or sending me emails,
             you can try tou use Telegram's Bot <i>@RPiZeroBot</i>.<br/>It is
             still a beta version, but it should work  🙂.
-            <br style="clear:both" />
         </div>
         {% endif %}
-
-        <div id="comments">
-          <h2>Comments - because why not? 🙂</h2>
-          <div id="disqus_thread"></div>
-          <script type="text/javascript">
-            var disqus_shortname = 'drslog';
-            var disqus_url = 'http://rpi0.satanowski.net';
-            var disqus_identifier = disqus_url;
-            (function() {
-            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
-            dsq.src = '//drslog.disqus.com/embed.js';
-            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-            })();
-          </script>
-          <noscript>Please enable JavaScript to view the comments.</noscript>
-        </div>
     </div>
 
+    <div class="col-md-6">
+      <div id="comments">
+        <h2>Comments - because why not? 🙂</h2>
+        <div id="disqus_thread"></div>
+        <script type="text/javascript">
+          var disqus_shortname = 'drslog';
+          var disqus_url = 'http://rpi0.satanowski.net';
+          var disqus_identifier = disqus_url;
+          (function() {
+          var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+          dsq.src = '//drslog.disqus.com/embed.js';
+          (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+          })();
+        </script>
+        <noscript>Please enable JavaScript to view the comments.</noscript>
+      </div>
+    </div>
+
+  </div>
+</div>
+   <br style="clear:both;margin-top:50px;" />
     <div id="footer">
         <p>If you are persistent enough to find my e-mail address, you can send me a
         message and I will put your e-mail on this site's magic list, so you will
