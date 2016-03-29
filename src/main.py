@@ -36,7 +36,7 @@ lock = asyncio.Lock()
 last_check = None
 
 # how many periods without Pi in shops must pass to turn back on notifications
-FALSE_PERIODS_THRESHOLD = 3
+FALSE_PERIODS_THRESHOLD = 2
 CHECK_INTERVAL = 5  # minutes
 SHOP_HANDLERS = []
 
@@ -82,6 +82,7 @@ def check():
     last_check = datetime.utcnow().strftime("%Y/%m/%d-%H:%M")
 
     if any([shop.available for shop in SHOP_HANDLERS]):
+        log.info('In stock!')
         notify()
     else:
         log.info('Out of stock')
@@ -91,7 +92,6 @@ def check():
 def notify():
     """Notify about availability of observed products."""
 
-    log.info('In stock!')
     availability.append(True)
     emails, gm, msg = prepare_emails()
 

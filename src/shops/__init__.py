@@ -7,7 +7,7 @@ from .pimoroni import Pimoroni
 shops = [
     Adafruit,
     Botland,
-    # Element14, disabled since SSL errors, To be investigated
+    # Element14, disabled due to SSL errors, To be investigated
     Pihut,
     Pimoroni
 ]
