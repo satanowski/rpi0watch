@@ -3,6 +3,7 @@ from .botland import Botland
 # from .element14 import Element14
 from .pihut import Pihut
 from .pimoroni import Pimoroni
+# from .dummy import DummyShop
 
 shops = [
     Adafruit,
@@ -10,4 +11,5 @@ shops = [
     # Element14, disabled due to SSL errors, To be investigated
     Pihut,
     Pimoroni
+    # DummyShop
 ]

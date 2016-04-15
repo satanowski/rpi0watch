@@ -11,6 +11,7 @@ import logging as log
 import smtplib
 import asyncio
 import json
+from collections import deque
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from jinja2 import Template
@@ -76,3 +77,12 @@ def prepare_emails():
         return None, None, None
 
     return emails, gm, msg
+
+class Mydeq(deque):
+    def lastN(self, n):
+        if len(self) == 0:
+            return []
+
+        return [
+            self[len(self)-1-i] for i in range(n > len(self) and len(self) or n)
+        ]

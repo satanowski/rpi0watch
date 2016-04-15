@@ -7,7 +7,6 @@
     :license: GNU General Public License v3.0
 """
 
-from collections import deque
 from datetime import datetime
 import asyncio
 import logging as log
@@ -20,7 +19,7 @@ import aiocron
 import PyRSS2Gen
 
 from shops import shops
-from utils import send_email, prepare_emails
+from utils import send_email, prepare_emails, Mydeq
 
 __OFFNAME__ = 'Raspberry Pi 0 Watch'
 
@@ -34,13 +33,17 @@ log.basicConfig(
 )
 lock = asyncio.Lock()
 last_check = None
+last_notification = None
+last_status = False
 
-# how many periods without Pi in shops must pass to turn back on notifications
-FALSE_PERIODS_THRESHOLD = 2
+# how many minutes must pass since last notification to send another one
+ANNOY_THRESHOLD = 15
+
+
 CHECK_INTERVAL = 5  # minutes
 SHOP_HANDLERS = []
 
-availability = deque(maxlen=int(24 * (60 / CHECK_INTERVAL)))
+availability = Mydeq(maxlen=int(24 * (60 / CHECK_INTERVAL)))
 
 tmpl_f = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html')
 with open(tmpl_f, 'r') as f:
@@ -91,6 +94,7 @@ def check():
 
 def notify():
     """Notify about availability of observed products."""
+    global last_notification
 
     availability.append(True)
     emails, gm, msg = prepare_emails()
@@ -99,18 +103,16 @@ def notify():
         log.error('Cannot notify users! No email/message configuration!')
         return
 
-    thresh = len(availability) if len(availability) < FALSE_PERIODS_THRESHOLD \
-        else FALSE_PERIODS_THRESHOLD
-    h_len = len(availability)
-    do_notify = all([not availability[x] for x in range(h_len-thresh, h_len)])
+    if (last_notification and
+        (datetime.utcnow()-last_notification).min < ANNOY_THRESHOLD):
 
-    if not do_notify:
         log.info(
-            'Skipping notification: Pi was available in last %d periods.',
-            thresh
+            'Skipping notification: Pi was available at least once for last '
+            '%d minutes.', ANNOY_THRESHOLD
         )
         return
 
+    last_notification = datetime.utcnow()
     products = get_products(only_available=True)
     a_message = msg.render(shops=products)
 
