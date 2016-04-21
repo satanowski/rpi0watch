@@ -31,26 +31,33 @@ log.basicConfig(
     level=log.DEBUG,
     format='%(asctime)s %(levelname)s\n%(message)s\n'
 )
-lock = asyncio.Lock()
+
 last_check = None
 last_notification = None
 last_status = False
 
 # how many minutes must pass since last notification to send another one
-ANNOY_THRESHOLD = 15
-
-
+ANNOY_THRESHOLD = 10
 CHECK_INTERVAL = 5  # minutes
 SHOP_HANDLERS = []
 
+index_template = ""
 availability = Mydeq(maxlen=int(24 * (60 / CHECK_INTERVAL)))
+availability.load()
 
-tmpl_f = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html')
-with open(tmpl_f, 'r') as f:
-    try:
-        index_template = Template(f.read())
-    except IOError:
-        sys.exit('Cannot open template file!')
+
+def load_template():
+    """Load HTML template."""
+    global index_template
+    tmpl_f = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        'index.html'
+    )
+    with open(tmpl_f, 'r') as f:
+        try:
+            index_template = Template(f.read())
+        except IOError:
+            sys.exit('Cannot open template file!')
 
 
 def prepare_shop_handlers():
@@ -86,6 +93,7 @@ def check():
 
     if any([shop.available for shop in SHOP_HANDLERS]):
         log.info('In stock!')
+        availability.append(True)
         notify()
     else:
         log.info('Out of stock')
@@ -96,16 +104,16 @@ def notify():
     """Notify about availability of observed products."""
     global last_notification
 
-    availability.append(True)
     emails, gm, msg = prepare_emails()
 
     if not all([emails, gm, msg]):
         log.error('Cannot notify users! No email/message configuration!')
         return
 
-    if (last_notification and
-        (datetime.utcnow()-last_notification).min < ANNOY_THRESHOLD):
+    if not last_notification:
+            last_notification = datetime.utcnow()
 
+    if (datetime.utcnow() - last_notification).seconds // 60 < ANNOY_THRESHOLD:
         log.info(
             'Skipping notification: Pi was available at least once for last '
             '%d minutes.', ANNOY_THRESHOLD
@@ -182,7 +190,7 @@ def index(request):
 @asyncio.coroutine
 def init(loop):
     """Main loop."""
-
+    load_template()
     app = web.Application(loop=loop)
     app.router.add_route('GET', '/', index)
     app.router.add_route('GET', '/rss', rss)
@@ -201,4 +209,5 @@ if __name__ == '__main__':
     try:
         loop.run_forever()
     except KeyboardInterrupt:
+        availability.save()
         pass

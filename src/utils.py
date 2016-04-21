@@ -11,12 +11,14 @@ import logging as log
 import smtplib
 import asyncio
 import json
+import os
+from array import array
 from collections import deque
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
 from jinja2 import Template
 from ssl import SSLError
-
 import aiohttp
 
 log.basicConfig(
@@ -79,6 +81,11 @@ def prepare_emails():
     return emails, gm, msg
 
 class Mydeq(deque):
+    DEFAULT_FILE = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        'history'
+    )
+
     def lastN(self, n):
         if len(self) == 0:
             return []
@@ -86,3 +93,34 @@ class Mydeq(deque):
         return [
             self[len(self)-1-i] for i in range(n > len(self) and len(self) or n)
         ]
+
+    def save(self, filepath=""):
+        path = filepath or Mydeq.DEFAULT_FILE
+        a = array('B')
+        a.fromlist([x.real for x in self])
+        try:
+            with open(path, 'wb') as fp:
+                a.tofile(fp)
+        except IOError:
+            log.error("Cannot open file '%s' for writing!", path)
+            return False
+        return True
+
+    def load(self, filepath=""):
+        path = filepath or Mydeq.DEFAULT_FILE
+        a = array('B')
+        try:
+            with open(path, 'rb') as fp:
+                all_read = False
+                while not all_read:
+                    try:
+                        a.fromfile(fp, 1024)
+                    except EOFError:
+                        all_read = True
+            self.clear()
+            self.extend([bool(x) for x in a])
+        except IOError:
+            log.error("Cannot open file '%s' for reading!", path)
+            return False
+
+        return True
