@@ -33,7 +33,7 @@ log.basicConfig(
 )
 
 last_check = None
-last_notification = None
+last_notification = datetime.utcnow()
 last_status = False
 
 # how many minutes must pass since last notification to send another one
@@ -94,45 +94,73 @@ def check():
     if any([shop.available for shop in SHOP_HANDLERS]):
         log.info('In stock!')
         availability.append(True)
-        notify()
+        yield from notify()
     else:
         log.info('Out of stock')
         availability.append(False)
 
+    availability.save()
 
+
+@asyncio.coroutine
+def notify_by_email(emails, gm, a_message):
+    """Send email notification to users."""
+
+    if not all([emails, gm, a_message]):
+        log.error('Cannot notify users! No email/message configuration!')
+        return False
+
+    log.debug('Sending emails...(%d)', len(emails))
+
+    for e in emails:
+        send_email(gm.get('login'), gm.get('pass'), e, __OFFNAME__, a_message)
+    log.debug('Sending emails done')
+    return True
+
+
+@asyncio.coroutine
+def notify_by_telegram(a_message):
+    """Send notification via Telegram."""
+    if BOT_ENABLED:
+        log.debug('Sending telegram mesages...')
+        bot.notify(a_message)
+        log.debug('Sending telegram mesages done')
+        return True
+    else:
+        log.debug('Bot disabled - Not sending notifications!')
+    return False
+
+
+@asyncio.coroutine
 def notify():
     """Notify about availability of observed products."""
     global last_notification
 
-    emails, gm, msg = prepare_emails()
-
-    if not all([emails, gm, msg]):
-        log.error('Cannot notify users! No email/message configuration!')
+    # Check if availability is changed since last check
+    if all(availability.lastN(2)):
+        log.debug(
+            'Skipping notification: Pi is still available so there is no need '
+            'to re-send notification'
+        )
         return
 
-    if not last_notification:
-            last_notification = datetime.utcnow()
-
     if (datetime.utcnow() - last_notification).seconds // 60 < ANNOY_THRESHOLD:
-        log.info(
+        log.debug(
             'Skipping notification: Pi was available at least once for last '
             '%d minutes.', ANNOY_THRESHOLD
         )
         return
 
     last_notification = datetime.utcnow()
-    products = get_products(only_available=True)
-    a_message = msg.render(shops=products)
-
-    if BOT_ENABLED:
-        log.debug('Sending telegram mesages...')
-        bot.notify(a_message)
-        log.debug('Sending telegram mesages done')
-
-    log.debug('Sending emails...(%d)', len(emails))
-    for e in emails:
-        send_email(gm.get('login'), gm.get('pass'), e, __OFFNAME__, a_message)
-    log.debug('Sending emails done')
+    emails, gm, msg = prepare_emails()
+    a_message = msg.render(shops=get_products(only_available=True))
+    e_notification = yield from notify_by_email(emails, gm, a_message)
+    t_notification = yield from notify_by_telegram(a_message)
+    log.debug(
+        'Sending notifications done: E:%s, T:%s',
+        e_notification,
+        t_notification
+    )
 
 
 def chunks(l, n):
@@ -188,10 +216,10 @@ def index(request):
 
 
 @asyncio.coroutine
-def init(loop):
+def init(a_loop):
     """Main loop."""
     load_template()
-    app = web.Application(loop=loop)
+    app = web.Application(loop=a_loop)
     app.router.add_route('GET', '/', index)
     app.router.add_route('GET', '/rss', rss)
     srv = yield from loop.create_server(app.make_handler(), '127.0.0.1', 3033)
@@ -210,4 +238,3 @@ if __name__ == '__main__':
         loop.run_forever()
     except KeyboardInterrupt:
         availability.save()
-        pass
